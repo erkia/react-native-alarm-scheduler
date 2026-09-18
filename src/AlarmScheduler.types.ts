@@ -35,8 +35,9 @@ export type AlarmMetadata = Record<string, AlarmMetadataValue>;
 /**
  * Controls which buttons the ringing alert offers.
  *
- * `default` shows a stop button. `openAppOnly` removes it, leaving a single button that opens
- * your app while the alarm keeps ringing; only `completeNativeAlarmAsync()` ends the ring.
+ * On Android, `openAppOnly` removes the stop button, leaving an app-opening action;
+ * only `completeNativeAlarmAsync()` ends the ring. On iOS it adds an app-opening
+ * secondary action, but AlarmKit retains its system stop control.
  *
  * @see https://react-native-alarm-scheduler.vercel.app/guides/completion-gating
  */

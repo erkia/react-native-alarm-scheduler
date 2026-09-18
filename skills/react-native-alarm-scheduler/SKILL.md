@@ -113,7 +113,9 @@ deliveries. Resolving the current primary preserves the repeating native schedul
 ## Completion-gated alarms
 
 An alarm that keeps ringing until the app confirms the user finished something. Use
-`alertActionMode: 'openAppOnly'` to remove the native stop action.
+`alertActionMode: 'openAppOnly'` to remove the native stop action on Android. On iOS it adds
+an app-opening secondary action, but the system stop control remains. The iOS implementation uses
+the initializer with `stopButton` so it compiles with the original iOS 26 SDK and newer SDKs.
 
 ```ts
 await AlarmScheduler.scheduleAlarmAsync({
@@ -148,7 +150,7 @@ Never promise a user that an iOS alarm is undismissable.
 | Fires but no full-screen UI on Android 14+ | `canUseFullScreenIntent`, then `openFullScreenIntentSettingsAsync()` |
 | Rings but app opens on the wrong screen | Routing lives in an event listener instead of the launch reconcile |
 | Alarm stops when the user hits volume down | `android.enforceVolume` was disabled |
-| iOS shows a stop button despite `openAppOnly` | `getNativeAlarmDebugStateAsync().alertInitializer` — the runtime forced the legacy presentation |
+| iOS shows a stop button despite `openAppOnly` | `getNativeAlarmDebugStateAsync().alertInitializer` — expected: iOS uses the SDK-compatible stop-button initializer and retains a system stop control |
 | Ring stops after 5 minutes | `android.maxRingDurationSeconds` defaults to 300; set `0` |
 | Nothing works in Expo Go | Expected. Native module — use a development build |
 

@@ -43,13 +43,14 @@ type NativeAlarmDebugState = {
 
 ## Reading `alertInitializer`
 
-This field tells you which alert presentation the runtime actually gave you.
+This field tells you which alert initializer the package used.
 
 <Callout type="warn">
-If `alertActionMode` is `openAppOnly` but `alertInitializer` is `legacyStopButton`, the runtime
-required the legacy stop-button presentation and the package **cannot** remove that AlarmKit stop
-affordance. `runtimeSupportsSecondaryOnlyAlert` tells you whether the newer presentation was
-available at all.
+iOS uses `legacyStopButton` to support builds with the original iOS 26 SDK.
+`stopButtonIncluded` means the initializer received a stop button; the system controls how it is
+rendered. `runtimeSupportsSecondaryOnlyAlert` reports iOS 26.1+ runtime availability only, not
+which SDK built the app or whether the system stop control can be removed. Even the newer
+initializer provides a system stop control. `openAppOnly` cannot remove it on iOS.
 </Callout>
 
 On Android `alertInitializer` is always `androidRingService` — the package owns the ringing surface,

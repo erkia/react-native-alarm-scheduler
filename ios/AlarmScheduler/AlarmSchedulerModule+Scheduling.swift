@@ -365,28 +365,18 @@ extension AlarmSchedulerModule {
     } else {
       runtimeSupportsSecondaryOnlyAlert = false
     }
-    let shouldUseSecondaryOnly = alertActionMode == "openAppOnly" && runtimeSupportsSecondaryOnlyAlert
+    // Use the initializer present in the original iOS 26 SDK. A runtime
+    // availability check cannot make the newer overload compile with an older SDK.
+    // Newer AlarmKit versions provide their own stop control with either overload.
     let debugState: [String: Any] = [
       "alertActionMode": alertActionMode,
-      "stopButtonIncluded": !shouldUseSecondaryOnly,
+      "stopButtonIncluded": true,
       "secondaryButtonIncluded": secondaryButton != nil,
       "secondaryButtonBehavior": secondaryButtonBehaviorName,
       "stopIntentBehavior": stopIntentBehavior,
-      "alertInitializer": shouldUseSecondaryOnly ? "secondaryOnly" : "legacyStopButton",
+      "alertInitializer": "legacyStopButton",
       "runtimeSupportsSecondaryOnlyAlert": runtimeSupportsSecondaryOnlyAlert
     ]
-    if alertActionMode == "openAppOnly" {
-      if #available(iOS 26.1, *) {
-        return AlarmSchedulerAlertPresentationResult(
-          alert: AlarmPresentation.Alert(
-            title: LocalizedStringResource(stringLiteral: title),
-            secondaryButton: secondaryButton,
-            secondaryButtonBehavior: secondaryButtonBehavior
-          ),
-          debugState: debugState
-        )
-      }
-    }
     return AlarmSchedulerAlertPresentationResult(
       alert: AlarmPresentation.Alert(
         title: LocalizedStringResource(stringLiteral: title),

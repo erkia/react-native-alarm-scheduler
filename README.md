@@ -127,8 +127,8 @@ See the [API reference](https://react-native-alarm-scheduler.vercel.app/api/even
 
 ### Ringing until your app says stop
 
-Set `alertActionMode: 'openAppOnly'` and the ringing alert loses its stop button — the only way out
-opens your app, and the alarm keeps ringing until you call `completeNativeAlarmAsync(alarmId)`.
+On Android, set `alertActionMode: 'openAppOnly'` to remove the ringing alert's stop button — the only
+way out opens your app, and the alarm keeps ringing until you call `completeNativeAlarmAsync(alarmId)`.
 Useful when "the user pressed stop" is not proof of anything:
 
 ```ts
@@ -162,8 +162,8 @@ The guarantee is absolute on Android and best-effort on iOS — see
 | Open the system alarm app | ✅ | ❌ |
 
 ⚠️ Android lets the app own the ringing surface, so `openAppOnly` removes the stop control outright.
-On iOS the surface belongs to AlarmKit, which may still expose a system stop affordance the package
-cannot remove; `stopIntentBehavior: 'rescheduleImmediate'` re-arms behind it.
+On iOS the surface belongs to AlarmKit and retains a system stop control. The package uses the
+initializer with `stopButton` for compatibility with all iOS 26 SDKs; `stopIntentBehavior: 'rescheduleImmediate'` re-arms behind it.
 
 On web, `scheduleAlarmAsync` and `setSystemAlarmAsync` throw; every other method resolves to an
 explicit unavailable or no-op result, so a universal app still compiles and runs.

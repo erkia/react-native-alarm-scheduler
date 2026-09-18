@@ -55,9 +55,9 @@ reconcile from the async getters after launch — see [Handoffs and actions](/gu
 
 ## Alert presentation
 
-- `alertActionMode: 'openAppOnly'` prefers AlarmKit's newer secondary-only alert presentation
-  when the runtime supports it. This omits the package-configured stop button and makes the secondary
-  button the visible app action.
+- `alertActionMode: 'openAppOnly'` adds an app-opening secondary action. The package uses the
+  initializer with `stopButton` so it builds with the original iOS 26 SDK as well as newer SDKs.
+  AlarmKit retains its system stop control; `openAppOnly` cannot remove it on iOS.
 - `stopIntentBehavior: 'recordOnly'` installs a built-in AlarmKit App Intent that records a
   `nativeStop` action when the system stop control is pressed.
 - `stopIntentBehavior: 'openApp'` records `nativeStop` and asks iOS to foreground the app

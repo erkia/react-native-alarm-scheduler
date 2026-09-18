@@ -90,10 +90,10 @@ On Android this call is what silences the ringing service — it is mandatory, n
 stop button from both the ringing screen and the notification, back gestures are swallowed, and the
 notification is ongoing so it cannot be swiped away. There is no exit but your app.
 
-**iOS — best effort.** The ringing surface belongs to AlarmKit. `openAppOnly` prefers AlarmKit's
-newer secondary-only alert presentation when the runtime supports it, which omits the
-package-configured stop button. But AlarmKit may still expose system-owned close or stop affordances
-that never invoke the package's App Intents.
+**iOS — best effort.** The ringing surface belongs to AlarmKit. `openAppOnly` adds an app-opening
+secondary action, but cannot remove the system stop control. The package uses the initializer with
+`stopButton` for compatibility with all iOS 26 SDKs. System-owned close or stop affordances may
+not invoke the package's App Intents.
 
 The mitigation on iOS is `stopIntentBehavior: 'rescheduleImmediate'`, which re-arms behind a stop:
 
