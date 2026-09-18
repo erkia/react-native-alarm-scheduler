@@ -8,64 +8,20 @@ import android.net.Uri
 import android.os.Build
 import android.provider.AlarmClock
 import android.provider.Settings
-import expo.modules.kotlin.modules.Module
-import expo.modules.kotlin.modules.ModuleDefinition
-import expo.modules.kotlin.records.Field
-import expo.modules.kotlin.records.Record
 import org.json.JSONObject
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.bridge.Promise
+import com.facebook.react.bridge.ReactApplicationContext
+import com.facebook.react.bridge.ReadableArray
+import com.facebook.react.bridge.ReadableMap
+import java.util.Collections
+import java.util.concurrent.Executors
 
-class AlarmScheduleRecord : Record {
-  @Field var id: String? = null
-  @Field var hour: Int = -1
-  @Field var minute: Int = -1
-  @Field var title: String? = null
-  @Field var weekdays: List<Int>? = null
-  @Field var timestamp: Double? = null
-  @Field var showUi: Boolean = false
-  @Field var soundUri: String? = null
-  @Field var ios: IosAlarmOptionsRecord? = null
-  @Field var android: AndroidAlarmOptionsRecord? = null
-}
+class AlarmSchedulerModule(context: ReactApplicationContext) : NativeAlarmSchedulerSpec(context) {
+  private val executor = Executors.newSingleThreadExecutor()
 
-class IosAlarmOptionsRecord : Record {
-  @Field var metadata: Map<String, Any>? = null
-  @Field var alertTitle: String? = null
-  @Field var alertActionMode: String? = null
-  @Field var stopButtonTitle: String? = null
-  @Field var secondaryButtonTitle: String? = null
-  @Field var countdownTitle: String? = null
-  @Field var stopIntentBehavior: String? = null
-  @Field var secondaryButtonBehavior: String? = null
-  @Field var soundUri: String? = null
-  @Field var soundName: String? = null
-  @Field var silent: Boolean? = null
-}
-
-class AndroidAlarmOptionsRecord : Record {
-  @Field var metadata: Map<String, Any>? = null
-  @Field var alertTitle: String? = null
-  @Field var alertBody: String? = null
-  @Field var alertActionMode: String? = null
-  @Field var stopButtonTitle: String? = null
-  @Field var secondaryButtonTitle: String? = null
-  @Field var stopIntentBehavior: String? = null
-  @Field var secondaryButtonBehavior: String? = null
-  @Field var soundName: String? = null
-  @Field var soundUri: String? = null
-  @Field var silent: Boolean? = null
-  @Field var vibrate: Boolean? = null
-  @Field var enforceVolume: Boolean? = null
-  @Field var restoreVolume: Boolean? = null
-  @Field var volume: Double? = null
-  @Field var fullScreen: Boolean? = null
-  @Field var fullScreenTarget: String? = null
-  @Field var launchUri: String? = null
-  @Field var maxRingDurationSeconds: Double? = null
-  @Field var backupDelaySeconds: Double? = null
-}
-
-class AlarmSchedulerModule : Module() {
-  private val observedEvents = mutableSetOf<String>()
+  override fun getName() = "AlarmScheduler"
+  private val observedEvents = Collections.synchronizedSet(mutableSetOf<String>())
 
   private val busListener = object : AlarmSchedulerEventBus.Listener {
     override fun onAlarmTriggered(alarm: Map<String, Any>) = emit("onAlarmTriggered", alarm)
@@ -73,16 +29,14 @@ class AlarmSchedulerModule : Module() {
     override fun onAlarmStateChange(event: Map<String, Any>) = emit("onAlarmStateChange", event)
   }
 
-  override fun definition() = ModuleDefinition {
-    Name("AlarmScheduler")
-
-    Events("onAlarmTriggered", "onAlarmAction", "onAlarmStateChange")
-
-    AsyncFunction("getPermissionsAsync") {
+  override fun getPermissionsAsync(promise: Promise) {
+    runAsync(promise) {
       permissions()
     }
+  }
 
-    AsyncFunction("requestPermissionsAsync") {
+  override fun requestPermissionsAsync(promise: Promise) {
+    runAsync(promise) {
       val context = requireContext()
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !canScheduleExactAlarms()) {
         val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
@@ -93,8 +47,10 @@ class AlarmSchedulerModule : Module() {
       }
       permissions()
     }
+  }
 
-    AsyncFunction("openAlarmSettingsAsync") {
+  override fun openAlarmSettingsAsync(promise: Promise) {
+    runAsync(promise) {
       val context = requireContext()
       val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
         Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
@@ -109,44 +65,68 @@ class AlarmSchedulerModule : Module() {
       context.startActivity(intent)
       true
     }
+  }
 
-    AsyncFunction("openFullScreenIntentSettingsAsync") {
+  override fun openFullScreenIntentSettingsAsync(promise: Promise) {
+    runAsync(promise) {
       openFullScreenIntentSettings()
     }
+  }
 
-    AsyncFunction("scheduleAlarmAsync") { alarm: AlarmScheduleRecord ->
+  override fun scheduleAlarmAsync(alarmInput: ReadableMap, promise: Promise) {
+    runAsync(promise) {
+      val alarm = AlarmScheduleRecord.fromMap(alarmInput.toHashMap())
+
       AlarmSchedulerScheduler.schedule(requireContext(), alarm)
     }
+  }
 
-    AsyncFunction("cancelAlarmAsync") { id: String ->
+  override fun cancelAlarmAsync(id: String, promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerScheduler.cancel(requireContext(), id)
     }
+  }
 
-    AsyncFunction("getScheduledAlarmsAsync") {
+  override fun getScheduledAlarmsAsync(promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerScheduler.getAll(requireContext())
     }
+  }
 
-    AsyncFunction("getCurrentAlarmContextAsync") {
+  override fun getCurrentAlarmContextAsync(promise: Promise) {
+    runAsync(promise) {
       currentAlarmContext()
     }
+  }
 
-    AsyncFunction("getPendingAlarmActionsAsync") {
+  override fun getPendingAlarmActionsAsync(promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerStore.actions(requireContext()).map(AlarmSchedulerJson::toMap)
     }
+  }
 
-    AsyncFunction("clearPendingAlarmActionsAsync") { ids: List<String>? ->
+  override fun clearPendingAlarmActionsAsync(idsInput: ReadableArray?, promise: Promise) {
+    runAsync(promise) {
+      val ids = idsInput?.toArrayList()?.map { it as? String ?: throw IllegalArgumentException("ids must contain strings.") }
+
       AlarmSchedulerStore.clearActions(requireContext(), ids)
     }
+  }
 
-    AsyncFunction("getPendingNativeAlarmHandoffAsync") {
+  override fun getPendingNativeAlarmHandoffAsync(promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerStore.pendingHandoff(requireContext())?.let(AlarmSchedulerJson::toMap)
     }
+  }
 
-    AsyncFunction("clearPendingNativeAlarmHandoffAsync") {
+  override fun clearPendingNativeAlarmHandoffAsync(promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerStore.clearPendingHandoff(requireContext())
     }
+  }
 
-    AsyncFunction("completeNativeAlarmAsync") { alarmId: String ->
+  override fun completeNativeAlarmAsync(alarmId: String, promise: Promise) {
+    runAsync(promise) {
       val context = requireContext()
       // Order matters: mark complete first so a backup broadcast already in flight stays quiet.
       AlarmSchedulerStore.complete(context, alarmId)
@@ -166,40 +146,62 @@ class AlarmSchedulerModule : Module() {
         AlarmSchedulerSoundStore.delete(context, alarmId)
       }
     }
+  }
 
-    AsyncFunction("resolveAlarmOccurrenceAsync") { occurrenceId: String, resolution: AlarmOccurrenceResolutionRecord ->
+  override fun resolveAlarmOccurrenceAsync(occurrenceId: String, resolutionInput: ReadableMap, promise: Promise) {
+    runAsync(promise) {
+      val resolution = AlarmOccurrenceResolutionRecord.fromMap(resolutionInput.toHashMap())
+
       AlarmSchedulerOccurrenceManager.resolve(requireContext(), occurrenceId, resolution)
     }
+  }
 
-    AsyncFunction("getAlarmOccurrencesAsync") { alarmId: String? ->
+  override fun getAlarmOccurrencesAsync(alarmId: String?, promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerOccurrenceStore.all(requireContext(), alarmId).map(AlarmSchedulerJson::toMap)
     }
+  }
 
-    AsyncFunction("cancelAlarmOccurrenceAsync") { occurrenceId: String ->
+  override fun cancelAlarmOccurrenceAsync(occurrenceId: String, promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerOccurrenceManager.cancel(requireContext(), occurrenceId)
     }
+  }
 
-    AsyncFunction("scheduleNativeAlarmBackupAsync") { alarmId: String, delaySeconds: Double? ->
+  override fun scheduleNativeAlarmBackupAsync(alarmId: String, delaySeconds: Double?, promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerScheduler.scheduleBackup(requireContext(), alarmId, delaySeconds)
     }
+  }
 
-    AsyncFunction("cancelNativeAlarmBackupAsync") { alarmId: String ->
+  override fun cancelNativeAlarmBackupAsync(alarmId: String, promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerScheduler.cancelBackups(requireContext(), alarmId)
     }
+  }
 
-    AsyncFunction("clearBypassAsync") { alarmId: String ->
+  override fun clearBypassAsync(alarmId: String, promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerStore.resetCompletion(requireContext(), alarmId)
     }
+  }
 
-    AsyncFunction("resetNativeAlarmCompletionAsync") { alarmId: String ->
+  override fun resetNativeAlarmCompletionAsync(alarmId: String, promise: Promise) {
+    runAsync(promise) {
       AlarmSchedulerStore.resetCompletion(requireContext(), alarmId)
     }
+  }
 
-    AsyncFunction("getNativeAlarmDebugStateAsync") { alarmId: String ->
+  override fun getNativeAlarmDebugStateAsync(alarmId: String, promise: Promise) {
+    runAsync(promise) {
       debugState(alarmId)
     }
+  }
 
-    AsyncFunction("setSystemAlarmAsync") { alarm: AlarmScheduleRecord ->
+  override fun setSystemAlarmAsync(alarmInput: ReadableMap, promise: Promise) {
+    runAsync(promise) {
+      val alarm = AlarmScheduleRecord.fromMap(alarmInput.toHashMap())
+
       val context = requireContext()
       val hour = AlarmSchedulerScheduler.requireHour(alarm.hour)
       val minute = AlarmSchedulerScheduler.requireMinute(alarm.minute)
@@ -222,8 +224,10 @@ class AlarmSchedulerModule : Module() {
         true
       }
     }
+  }
 
-    AsyncFunction("openSystemAlarmAppAsync") {
+  override fun openSystemAlarmAppAsync(promise: Promise) {
+    runAsync(promise) {
       val context = requireContext()
       val intent = Intent(AlarmClock.ACTION_SHOW_ALARMS).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -236,18 +240,33 @@ class AlarmSchedulerModule : Module() {
         true
       }
     }
+  }
 
-    OnStartObserving("onAlarmTriggered") { startObserving("onAlarmTriggered") }
-    OnStopObserving("onAlarmTriggered") { stopObserving("onAlarmTriggered") }
-    OnStartObserving("onAlarmAction") { startObserving("onAlarmAction") }
-    OnStopObserving("onAlarmAction") { stopObserving("onAlarmAction") }
-    OnStartObserving("onAlarmStateChange") { startObserving("onAlarmStateChange") }
-    OnStopObserving("onAlarmStateChange") { stopObserving("onAlarmStateChange") }
-
-    OnDestroy {
-      observedEvents.clear()
-      AlarmSchedulerEventBus.setListener(null)
+  private fun runAsync(promise: Promise, operation: () -> Any?) {
+    executor.execute {
+      try {
+        val result = operation()
+        promise.resolve(when (result) {
+          is Map<*, *> -> Arguments.makeNativeMap(result.mapKeys { (key, _) -> key as String })
+          is List<*> -> Arguments.makeNativeArray(result)
+          is Unit -> null
+          else -> result
+        })
+      } catch (error: Exception) {
+        promise.reject("ERR_ALARM_SCHEDULER", error.message, error)
+      }
     }
+  }
+
+  override fun setObserving(event: String, observing: Boolean) {
+    if (observing) startObserving(event) else stopObserving(event)
+  }
+
+  override fun invalidate() {
+    observedEvents.clear()
+    AlarmSchedulerEventBus.setListener(null)
+    executor.shutdown()
+    super.invalidate()
   }
 
   // region events
@@ -268,7 +287,7 @@ class AlarmSchedulerModule : Module() {
     if (!observedEvents.contains(event)) {
       return
     }
-    runCatching { sendEvent(event, payload) }
+    runCatching { emitOnAlarmEvent(Arguments.makeNativeMap(mapOf("name" to event, "payload" to payload))) }
   }
 
   // endregion
@@ -395,8 +414,7 @@ class AlarmSchedulerModule : Module() {
     )
   }
 
-  private fun requireContext() = appContext.reactContext
-    ?: throw IllegalStateException("React context is not available.")
+  private fun requireContext() = reactApplicationContext
 
   private fun canScheduleExactAlarms(): Boolean {
     val alarmManager = requireContext().getSystemService(AlarmManager::class.java)

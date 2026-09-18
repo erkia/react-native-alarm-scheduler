@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Replace the required Expo Modules runtime with a React Native TurboModule. Requires
+  React Native 0.79+ and the New Architecture; rebuild native projects after upgrading.
+- Preserve the alarm methods, events, native scheduling, ringing, sound import, and web fallbacks.
+- Keep the Expo config plugin optional and document equivalent bare React Native setup.
+
+
 <!--
   Every release needs its own `## <version>` heading here, added in the same commit that bumps
   package.json. .github/workflows/release.yml extracts release notes with `awk -v v="## $version"`,

@@ -14,14 +14,22 @@ Full docs: <https://react-native-alarm-scheduler.vercel.app/llms.txt>
 ## Before writing any code
 
 1. **Confirm the app can run native modules.** This package does not work in Expo Go. The app needs
-   a development build or a prebuilt native app. If the user is on Expo Go, say so before anything else.
-2. **Confirm the config plugin is registered** in `app.json` / `app.config.js`. Without it the
-   Android permissions and `NSAlarmKitUsageDescription` are missing and scheduling fails at runtime,
-   not at build time.
+   React Native 0.79+ with the New Architecture enabled, using a native app or development build.
+   Expo is optional (SDK 53+); bare apps do not need Expo Modules. If the user is on Expo Go, say so before anything else.
+2. **Confirm native configuration.** In Expo apps, register the config plugin in
+   `app.json` / `app.config.js`. In bare apps, follow the manual setup below. Missing Android
+   permissions or `NSAlarmKitUsageDescription` causes scheduling failures at runtime.
 
 ```json
 { "expo": { "plugins": [["react-native-alarm-scheduler", { "alarmKitUsageDescription": "…" }]] } }
 ```
+
+For bare React Native, use standard autolinking and run `pod install`. Add
+`SCHEDULE_EXACT_ALARM`, `POST_NOTIFICATIONS`, and `com.android.alarm.permission.SET_ALARM`
+to the app manifest. Set `NSAlarmKitUsageDescription` and `NSSupportsLiveActivities` in
+the app Info.plist. Add the package's `assets/alarm-scheduler-silence.caf` to the app
+target's Copy Bundle Resources, along with any `ios.soundName` files. These steps replace
+the Expo config plugin. Rebuild the app; runtime sound import behavior is unchanged.
 
 ## The six rules that cause most bugs
 
@@ -73,7 +81,7 @@ verify custom iOS playback on a physical device.
 
 **7. Use `silent`, not a zero-volume workaround.** `silent: true` overrides `soundUri` and
 `soundName`. Android skips playback and volume enforcement while leaving `vibrate` independent. On
-physical iOS 26+ devices the config plugin's bundled silent CAF preserves the AlarmKit presentation;
+physical iOS 26+ devices the silent CAF bundled through the plugin or manual native setup preserves the AlarmKit presentation;
 the Simulator rejects silent scheduling, and a missing bundled asset fails scheduling rather than
 falling back to the audible system sound.
 

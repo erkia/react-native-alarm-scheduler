@@ -1,4 +1,4 @@
-import { registerWebModule, NativeModule } from "expo";
+import { AlarmSchedulerEventEmitter } from "./AlarmSchedulerEventEmitter";
 
 import type {
   AlarmPermissionResponse,
@@ -8,13 +8,12 @@ import type {
   AlarmOccurrenceResolution,
   AlarmOccurrenceResolutionResult,
   AlarmScheduleInput,
-  AlarmSchedulerModuleEvents,
   NativeAlarmBackupResult,
   NativeAlarmDebugState,
   ScheduledAlarm,
 } from "./AlarmScheduler.types";
 
-class AlarmSchedulerModule extends NativeModule<AlarmSchedulerModuleEvents> {
+class AlarmSchedulerModule extends AlarmSchedulerEventEmitter {
   async getPermissionsAsync(): Promise<AlarmPermissionResponse> {
     return this.unavailablePermission();
   }
@@ -149,9 +148,6 @@ class AlarmSchedulerModule extends NativeModule<AlarmSchedulerModuleEvents> {
   }
 }
 
-export const AlarmScheduler = registerWebModule(
-  AlarmSchedulerModule,
-  "AlarmScheduler",
-);
+export const AlarmScheduler = new AlarmSchedulerModule();
 
 export default AlarmScheduler;

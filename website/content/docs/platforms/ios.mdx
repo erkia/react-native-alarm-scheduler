@@ -15,6 +15,11 @@ iOS alarm scheduling uses AlarmKit. The app must:
 Older iOS versions return `status: 'unavailable'`. `canScheduleExactAlarms` is `true` only when
 AlarmKit is available *and* authorized.
 
+Bare React Native apps can use all sound features without Expo. Follow the
+[native setup instructions](/installation#bare-react-native-setup), including copying the
+silent CAF asset and any named sounds into the main app bundle. The Expo plugin automates
+those resource steps for Expo apps.
+
 ## Silent alarms
 
 `ios: { silent: true }` uses a silent sound bundled automatically by the config plugin. AlarmKit

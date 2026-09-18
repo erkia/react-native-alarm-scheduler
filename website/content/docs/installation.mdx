@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Install the package and configure the Expo config plugin.
+description: Install in bare React Native without Expo, or use the optional Expo config plugin.
 ---
 
 import { Callout } from 'fumadocs-ui/components/callout';
@@ -11,11 +11,50 @@ npm install react-native-alarm-scheduler
 
 <Callout type="warn" title="Not available in Expo Go">
 This module ships native code. Use a development build or a prebuilt native app.
-Bare React Native apps need [Expo Modules](https://docs.expo.dev/bare/installing-expo-modules/)
-installed and configured first; Expo apps already include the required runtime.
+Expo is optional. Both bare React Native and Expo apps use the same React Native TurboModule.
+React Native 0.79+ and the New Architecture are required.
 </Callout>
 
-## Add the config plugin
+## Bare React Native setup
+
+Expo and Expo Modules are not required. The package autolinks through React Native.
+Use React Native 0.79+ with the New Architecture enabled, then rebuild your app.
+
+### Android
+
+Add these permissions above `<application>` in your app's
+`android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+```
+
+The library contributes its receivers, ring activity, foreground service, and other
+ringing permissions through manifest merging. Request notification permission at runtime
+on Android 13+ when needed; declaring it does not grant it.
+
+### iOS
+
+Run `cd ios && pod install`, then add these entries to the app's `Info.plist`:
+
+```xml
+<key>NSAlarmKitUsageDescription</key>
+<string>Allow this app to schedule alarms.</string>
+<key>NSSupportsLiveActivities</key>
+<true/>
+```
+
+Add `node_modules/react-native-alarm-scheduler/assets/alarm-scheduler-silence.caf` to the
+app target's **Build Phases → Copy Bundle Resources** in Xcode. It must be in the main app
+bundle for `ios.silent: true`. Add any files referenced by `ios.soundName` to the same phase.
+Runtime `soundUri` imports need no bundled sound entry.
+
+Rebuild the native app. Actual iOS scheduling still requires the iOS 26 SDK and an iOS 26+
+device; the module reports unavailable on older systems.
+
+## Expo setup (optional config plugin)
 
 Add the plugin to your app config before running `expo prebuild`:
 
@@ -61,7 +100,7 @@ package's internal iOS silence asset automatically; `silent: true` needs no plug
 
 ## What the package adds on its own
 
-You do not need to declare anything else. The package's own Android manifest contributes the
+After completing the bare setup or applying the Expo plugin, the package's own Android manifest contributes the
 permissions the ringing layer needs — `WAKE_LOCK`, `VIBRATE`, `RECEIVE_BOOT_COMPLETED`,
 `USE_FULL_SCREEN_INTENT`, `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_SPECIAL_USE`, `DISABLE_KEYGUARD`
 and `TURN_SCREEN_ON` — plus the ringing service, the lock-screen ring activity, and the boot receiver.
@@ -74,7 +113,8 @@ the user completes the wake-up flow" is the honest one.
 
 ## Requirements
 
-- Android API 24+.
-- iOS 15.1+ for package compatibility.
+- React Native 0.79+ with the New Architecture enabled (Expo SDK 53+ when using Expo).
+- Android API 24+, or the higher minimum required by your React Native version.
+- iOS 15.1+, or the higher minimum required by your React Native version.
 - iOS 26 SDK **and** iOS 26 runtime for actual AlarmKit scheduling. Older iOS versions report
   `status: 'unavailable'`.

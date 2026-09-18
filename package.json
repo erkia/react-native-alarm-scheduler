@@ -12,22 +12,21 @@
     "android/src",
     "app.plugin.js",
     "build",
-    "expo-module.config.json",
-    "ios/AlarmScheduler.podspec",
+    "AlarmScheduler.podspec",
     "ios/AlarmScheduler",
     "ios/Tests",
     "skills",
-    "src"
+    "src",
+    "react-native.config.js",
+    "scripts/verify-silent-sound.mjs"
   ],
   "scripts": {
-    "build": "expo-module build",
-    "clean": "expo-module clean",
-    "lint": "expo-module lint",
-    "test": "expo-module test",
-    "prepare": "expo-module prepare",
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src app.plugin.js react-native.config.js",
+    "test": "node --test tests/*.test.cjs",
+    "prepare": "npm run build",
     "prepack": "node scripts/verify-silent-sound.mjs",
-    "prepublishOnly": "expo-module prepublishOnly",
-    "expo-module": "expo-module",
+    "prepublishOnly": "npm run build && npm run lint && npm test",
     "open:ios": "xed example/ios",
     "open:android": "open -a \"Android Studio\" example/android"
   },
@@ -52,13 +51,35 @@
   "dependencies": {},
   "devDependencies": {
     "@types/react": "~19.1.1",
-    "expo-module-scripts": "^55.0.2",
-    "expo": "^55.0.24",
-    "react-native": "0.82.1"
+    "react": "19.1.1",
+    "react-native": "0.82.1",
+    "typescript": "~5.9.2",
+    "eslint": "^9.39.0",
+    "@eslint/js": "^9.39.0",
+    "typescript-eslint": "^8.46.0",
+    "globals": "^16.4.0"
   },
   "peerDependencies": {
-    "expo": "*",
     "react": "*",
-    "react-native": "*"
+    "react-native": ">=0.79.0",
+    "expo": "*"
+  },
+  "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    }
+  },
+  "codegenConfig": {
+    "name": "AlarmSchedulerSpec",
+    "type": "modules",
+    "jsSrcsDir": "src/specs",
+    "android": {
+      "javaPackageName": "expo.modules.alarm"
+    },
+    "ios": {
+      "modulesProvider": {
+        "AlarmScheduler": "RCTAlarmScheduler"
+      }
+    }
   }
 }

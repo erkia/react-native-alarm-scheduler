@@ -5,6 +5,11 @@ description: Let users choose a different local audio file for each alarm.
 
 import { Callout } from 'fumadocs-ui/components/callout';
 
+Bare React Native apps can use all sound features without Expo. Follow the
+[native setup instructions](/installation#bare-react-native-setup), including copying the
+silent CAF asset and any named sounds into the main app bundle. The Expo plugin automates
+those resource steps for Expo apps.
+
 ## Silent alarms
 
 Set `silent: true` in either platform's options when the alarm should present normally without

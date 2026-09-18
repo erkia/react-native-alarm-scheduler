@@ -68,15 +68,15 @@ explicit unavailable or no-op result, so a universal app still compiles and runs
 
 ## Requirements
 
-- An Expo or bare React Native app with native prebuild support. This module uses native code, so it
-  does **not** work in Expo Go.
+- React Native 0.79+ with the New Architecture enabled. Expo is optional (SDK 53+);
+  this native module does **not** work in Expo Go.
 - Android API 24+.
 - iOS 15.1+ for compatibility; iOS 26 SDK and runtime for actual AlarmKit scheduling.
 
 ## Next steps
 
 <Cards>
-  <Card title="Installation" href="/installation" description="Install the package and configure the Expo config plugin." />
+  <Card title="Installation" href="/installation" description="Set up bare React Native or use the optional Expo config plugin." />
   <Card title="Quick start" href="/quick-start" description="Schedule your first alarm in a few lines." />
   <Card title="Completion gating" href="/guides/completion-gating" description="Keep an alarm ringing until your app confirms it is done." />
   <Card title="API reference" href="/api" description="Every method, type and event." />

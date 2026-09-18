@@ -19,11 +19,17 @@
  * Reproduce the failure locally with:
  *   mv ../node_modules/expo-module-scripts /tmp && npm run build
  */
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const websiteDir = dirname(dirname(fileURLToPath(import.meta.url)));
+// Keep the hook for older parent configs; the package now uses a standalone tsconfig.
+const parentConfig = join(websiteDir, '..', 'tsconfig.json');
+if (!existsSync(parentConfig) || !readFileSync(parentConfig, 'utf8').includes('expo-module-scripts/tsconfig.base')) {
+  process.exit(0);
+}
+
 const packageDir = join(websiteDir, '..', 'node_modules', 'expo-module-scripts');
 
 if (existsSync(join(packageDir, 'tsconfig.base.json'))) {

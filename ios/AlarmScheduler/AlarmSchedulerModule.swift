@@ -1,4 +1,4 @@
-import ExpoModulesCore
+import React
 import Foundation
 import UIKit
 
@@ -6,7 +6,9 @@ import UIKit
 import AlarmKit
 #endif
 
-public class AlarmSchedulerModule: Module {
+@objc(AlarmSchedulerImplementation)
+public class AlarmSchedulerModule: NSObject {
+  @objc public var eventHandler: ((String, [String: Any]) -> Void)?
   private var alarmActionObserver: NSObjectProtocol?
   private var alarmUpdatesTask: Task<Void, Never>?
 
@@ -17,102 +19,90 @@ public class AlarmSchedulerModule: Module {
     alarmUpdatesTask?.cancel()
   }
 
-  public func definition() -> ModuleDefinition {
-    Name("AlarmScheduler")
-
-    Events("onAlarmTriggered", "onAlarmAction", "onAlarmStateChange")
-
-    AsyncFunction("getPermissionsAsync") { () async -> [String: Any] in
-      return await self.permissions()
+  // React Native calls through the Objective-C++ TurboModule adapter. Keep the
+  // scheduling engine in Swift, including its async tasks and main-thread UI work.
+  @objc public func invoke(_ method: String, arguments: [String: Any],
+                           resolve: @escaping RCTPromiseResolveBlock,
+                           reject: @escaping RCTPromiseRejectBlock) {
+    Task {
+      do {
+        let result = try await invoke(method, arguments: arguments)
+        resolve(result)
+      } catch {
+        let code = error is UnsupportedAlarmException ? "ERR_UNSUPPORTED_ALARM" :
+          (error is InvalidAlarmException ? "ERR_INVALID_ALARM" : "ERR_ALARM_SCHEDULER")
+        reject(code, error.localizedDescription, error)
+      }
     }
+  }
 
-    AsyncFunction("requestPermissionsAsync") { () async -> [String: Any] in
+  private func invoke(_ method: String, arguments: [String: Any]) async throws -> Any? {
+    func string(_ key: String) throws -> String {
+      try AlarmSchedulerArguments.required(AlarmSchedulerArguments.string(arguments, key), key)
+    }
+    func object(_ key: String) throws -> [String: Any] {
+      try AlarmSchedulerArguments.required(AlarmSchedulerArguments.object(arguments, key), key)
+    }
+    switch method {
+    case "getPermissionsAsync":
+      return await permissions()
+    case "requestPermissionsAsync":
       #if canImport(AlarmKit)
       if #available(iOS 26.0, *) {
         _ = try? await AlarmManager.shared.requestAuthorization()
       }
       #endif
-      return await self.permissions()
-    }
-
-    AsyncFunction("openAlarmSettingsAsync") { () -> Bool in
-      guard let url = URL(string: UIApplication.openSettingsURLString) else {
-        return false
-      }
-      DispatchQueue.main.async {
+      return await permissions()
+    case "openAlarmSettingsAsync":
+      return await MainActor.run {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return false }
         UIApplication.shared.open(url)
+        return true
       }
-      return true
-    }.runOnQueue(.main)
-
-    AsyncFunction("scheduleAlarmAsync") { (alarm: AlarmScheduleRecord) async throws -> [String: Any] in
-      return try await self.schedule(alarm)
-    }
-
-    AsyncFunction("cancelAlarmAsync") { (id: String) async -> Bool in
-      return await self.cancel(id: id)
-    }
-
-    AsyncFunction("getScheduledAlarmsAsync") { () -> [[String: Any]] in
-      return self.visibleScheduledAlarms()
-    }
-
-    AsyncFunction("getCurrentAlarmContextAsync") { () -> [String: Any]? in
-      return self.currentAlarmContext()
-    }
-
-    AsyncFunction("getPendingAlarmActionsAsync") { () -> [[String: Any]] in
+    case "openFullScreenIntentSettingsAsync":
+      return false
+    case "scheduleAlarmAsync":
+      return try await schedule(AlarmScheduleRecord(object("alarm")))
+    case "cancelAlarmAsync":
+      return await cancel(id: try string("id"))
+    case "getScheduledAlarmsAsync":
+      return visibleScheduledAlarms()
+    case "getCurrentAlarmContextAsync":
+      return currentAlarmContext()
+    case "getPendingAlarmActionsAsync":
       return AlarmSchedulerNativeAlarmStore.all()
-    }
-
-    AsyncFunction("clearPendingAlarmActionsAsync") { (ids: [String]?) -> Void in
-      AlarmSchedulerNativeAlarmStore.clear(ids: ids)
-    }
-
-    AsyncFunction("getPendingNativeAlarmHandoffAsync") { () -> [String: Any]? in
+    case "clearPendingAlarmActionsAsync":
+      AlarmSchedulerNativeAlarmStore.clear(ids: try AlarmSchedulerArguments.stringList(arguments, "ids"))
+    case "getPendingNativeAlarmHandoffAsync":
       return AlarmSchedulerNativeAlarmStore.pendingHandoff()
-    }
-
-    AsyncFunction("clearPendingNativeAlarmHandoffAsync") { () -> Void in
+    case "clearPendingNativeAlarmHandoffAsync":
       AlarmSchedulerNativeAlarmStore.clearPendingHandoff()
-    }
-
-    AsyncFunction("completeNativeAlarmAsync") { (alarmId: String) async -> Void in
+    case "completeNativeAlarmAsync":
+      let alarmId = try string("alarmId")
       AlarmSchedulerNativeAlarmStore.complete(alarmId: alarmId)
-      await self.cancelNativeAndRetryAlarms(originalAlarmId: alarmId)
+      await cancelNativeAndRetryAlarms(originalAlarmId: alarmId)
       AlarmSchedulerNativeAlarmStore.clearActions(alarmId: alarmId)
-      self.finishOccurrenceRecords(alarmId: alarmId)
-    }
-
-    AsyncFunction("resolveAlarmOccurrenceAsync") { (occurrenceId: String, resolution: AlarmOccurrenceResolutionRecord) async throws -> [String: Any] in
-      return try await self.resolveAlarmOccurrence(occurrenceId: occurrenceId, resolution: resolution)
-    }
-
-    AsyncFunction("getAlarmOccurrencesAsync") { (alarmId: String?) -> [[String: Any]] in
-      return AlarmSchedulerOccurrenceStore.all(alarmId: alarmId)
-    }
-
-    AsyncFunction("cancelAlarmOccurrenceAsync") { (occurrenceId: String) async -> Bool in
-      return await self.cancelAlarmOccurrence(occurrenceId: occurrenceId)
-    }
-
-    AsyncFunction("scheduleNativeAlarmBackupAsync") { (alarmId: String, delaySeconds: Double?) async -> [String: Any] in
-      return await self.scheduleNativeAlarmBackup(alarmId: alarmId, delaySeconds: delaySeconds)
-    }
-
-    AsyncFunction("cancelNativeAlarmBackupAsync") { (alarmId: String) async -> Bool in
-      return await self.cancelNativeAlarmBackup(alarmId: alarmId)
-    }
-
-    AsyncFunction("clearBypassAsync") { (alarmId: String) -> Void in
-      AlarmSchedulerNativeAlarmStore.resetCompletion(alarmId: alarmId)
-    }
-
-    AsyncFunction("resetNativeAlarmCompletionAsync") { (alarmId: String) -> Void in
-      AlarmSchedulerNativeAlarmStore.resetCompletion(alarmId: alarmId)
-    }
-
-    AsyncFunction("getNativeAlarmDebugStateAsync") { (alarmId: String) -> [String: Any] in
+      finishOccurrenceRecords(alarmId: alarmId)
+    case "resolveAlarmOccurrenceAsync":
+      return try await resolveAlarmOccurrence(
+        occurrenceId: string("occurrenceId"),
+        resolution: AlarmOccurrenceResolutionRecord(object("resolution"))
+      )
+    case "getAlarmOccurrencesAsync":
+      return AlarmSchedulerOccurrenceStore.all(alarmId: try AlarmSchedulerArguments.string(arguments, "alarmId"))
+    case "cancelAlarmOccurrenceAsync":
+      return await cancelAlarmOccurrence(occurrenceId: try string("occurrenceId"))
+    case "scheduleNativeAlarmBackupAsync":
+      return await scheduleNativeAlarmBackup(
+        alarmId: try string("alarmId"),
+        delaySeconds: try AlarmSchedulerArguments.double(arguments, "delaySeconds")
+      )
+    case "cancelNativeAlarmBackupAsync":
+      return await cancelNativeAlarmBackup(alarmId: try string("alarmId"))
+    case "clearBypassAsync", "resetNativeAlarmCompletionAsync":
+      AlarmSchedulerNativeAlarmStore.resetCompletion(alarmId: try string("alarmId"))
+    case "getNativeAlarmDebugStateAsync":
+      let alarmId = try string("alarmId")
       var state: [String: Any] = [
         "alarmId": alarmId,
         "isComplete": AlarmSchedulerNativeAlarmStore.isComplete(alarmId: alarmId),
@@ -120,46 +110,50 @@ public class AlarmSchedulerModule: Module {
         "pendingActions": AlarmSchedulerNativeAlarmStore.all().filter { ($0["alarmId"] as? String) == alarmId },
         "pendingHandoff": AlarmSchedulerNativeAlarmStore.pendingHandoff() as Any,
         "intentDebugCounts": AlarmSchedulerNativeAlarmStore.intentDebugCounts(alarmId: alarmId),
-        "currentContext": self.currentAlarmContext() as Any
+        "currentContext": currentAlarmContext() as Any
       ]
-      if let storedAlarm = self.storedAlarms().first(where: { ($0["id"] as? String) == alarmId }),
+      if let storedAlarm = storedAlarms().first(where: { ($0["id"] as? String) == alarmId }),
         let alarmKitDebugState = storedAlarm["alarmKitDebugState"] as? [String: Any] {
-        alarmKitDebugState.forEach { key, value in
-          state[key] = value
-        }
+        alarmKitDebugState.forEach { key, value in state[key] = value }
       }
       return state
-    }
-
-    AsyncFunction("setSystemAlarmAsync") { (_: AlarmScheduleRecord) throws -> Bool in
+    case "setSystemAlarmAsync":
       throw UnsupportedAlarmException("iOS does not expose the Clock app alarm list through a public API. Use scheduleAlarmAsync on iOS 26+.")
-    }
-
-    AsyncFunction("openSystemAlarmAppAsync") { () -> Bool in
-      guard let url = URL(string: "clock-alarm:") else {
-        return false
-      }
-      DispatchQueue.main.async {
+    case "openSystemAlarmAppAsync":
+      return await MainActor.run {
+        guard let url = URL(string: "clock-alarm:") else { return false }
         UIApplication.shared.open(url)
+        return true
       }
-      return true
-    }.runOnQueue(.main)
-
-    OnStartObserving("onAlarmAction") {
-      self.startAlarmActionObserving()
+    default:
+      throw InvalidAlarmException("Unknown alarm method: \(method)")
     }
+    return nil
+  }
 
-    OnStopObserving("onAlarmAction") {
+  @objc public func setObserving(_ event: String, observing: Bool) {
+    // Serialize observer changes with invalidation, which also runs on the main queue.
+    DispatchQueue.main.async {
+      switch event {
+      case "onAlarmAction":
+        if observing { self.startAlarmActionObserving() } else { self.stopAlarmActionObserving() }
+      case "onAlarmStateChange":
+        if observing { self.startAlarmUpdatesObserving() } else { self.stopAlarmUpdatesObserving() }
+      default: break
+      }
+    }
+  }
+
+  @objc public func invalidate() {
+    DispatchQueue.main.async {
       self.stopAlarmActionObserving()
-    }
-
-    OnStartObserving("onAlarmStateChange") {
-      self.startAlarmUpdatesObserving()
-    }
-
-    OnStopObserving("onAlarmStateChange") {
       self.stopAlarmUpdatesObserving()
+      self.eventHandler = nil
     }
+  }
+
+  private func sendEvent(_ name: String, _ payload: [String: Any]) {
+    eventHandler?(name, payload)
   }
 
   private func startAlarmActionObserving() {

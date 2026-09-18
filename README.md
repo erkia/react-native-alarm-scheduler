@@ -40,11 +40,12 @@ schedules an actual alarm.
 
 ## Requirements
 
-- An Expo or bare React Native app with native prebuild support — this module uses native code, so it does **not** work in Expo Go.
+- React Native 0.79+ with the New Architecture enabled. Expo is optional (SDK 53+); Expo Go is unsupported.
 - Android API 24+.
 - iOS 15.1+ for compatibility; iOS 26 SDK and runtime for actual AlarmKit scheduling.
 
-Bare React Native apps need [Expo Modules](https://docs.expo.dev/bare/installing-expo-modules/) installed first.
+Bare React Native apps do **not** need Expo or Expo Modules. The package uses React Native TurboModules.
+Your React Native version may require higher minimum Android/iOS versions than those listed above.
 
 ## Installation
 
@@ -52,7 +53,9 @@ Bare React Native apps need [Expo Modules](https://docs.expo.dev/bare/installing
 npm install react-native-alarm-scheduler
 ```
 
-Add the config plugin to your app config, then rebuild:
+For **bare React Native**, follow the [native setup instructions](https://react-native-alarm-scheduler.vercel.app/installation#bare-react-native-setup): add Android alarm/notification permissions, run `pod install`, set the iOS plist entries, and include the silent CAF asset in the app target.
+
+For **Expo apps**, add the optional config plugin to your app config, then rebuild:
 
 ```json
 {
@@ -146,6 +149,7 @@ The guarantee is absolute on Android and best-effort on iOS — see
 
 | Capability | Android | iOS |
 | --- | :---: | :---: |
+| Works without Expo (React Native New Architecture) | ✅ | ✅ |
 | Schedule, list and cancel app-owned alarms | ✅ | ✅ |
 | Permissions and settings surfaces | ✅ | ✅ |
 | Custom alarm sound | ✅ | ✅ physical device; system default in Simulator |

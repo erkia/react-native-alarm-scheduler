@@ -49,7 +49,7 @@ extension AlarmSchedulerModule {
     #else
     guard Bundle.main.url(forResource: "alarm-scheduler-silence", withExtension: "caf") != nil else {
       throw InvalidAlarmException(
-        "The bundled silent alarm sound is missing. Apply the react-native-alarm-scheduler config plugin and rebuild the iOS app."
+        "The bundled silent alarm sound is missing. Add assets/alarm-scheduler-silence.caf from react-native-alarm-scheduler to the app target's Copy Bundle Resources, or apply the Expo config plugin, then rebuild."
       )
     }
     return Self.silentSoundName

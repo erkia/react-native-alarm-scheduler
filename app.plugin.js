@@ -6,7 +6,7 @@ const {
   withAndroidManifest,
   withInfoPlist,
   withXcodeProject,
-} = require('expo/config-plugins');
+} = require(require.resolve('expo/config-plugins', { paths: [__dirname, process.cwd()] }));
 const fs = require('fs');
 const path = require('path');
 
@@ -25,7 +25,7 @@ const withAlarmScheduler = (config, props = {}) => {
   const iosAlarmSounds = normalizeIosAlarmSounds(props.iosAlarmSounds);
 
   config = withAndroidManifest(config, (modConfig) => {
-    const manifest = modConfig.modResults.manifest;
+    const manifest = modConfig.modResults;
     if (addExactAlarmPermission) {
       AndroidConfig.Permissions.addPermission(manifest, 'android.permission.SCHEDULE_EXACT_ALARM');
     }
